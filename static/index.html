@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>West Contra Costa Collision Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #c53030;
+      color: white;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      z-index: 1000;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 700; }
+    header p  { font-size: 0.75rem; opacity: 0.85; margin-top: 2px; }
+
+    #stats-bar { display: flex; gap: 12px; font-size: 0.78rem; flex-wrap: wrap; }
+    .stat-pill {
+      background: rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 3px 10px;
+      white-space: nowrap;
+    }
+
+    #main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 320px;
+      min-width: 260px;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #e2e8f0;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    #filter-panel {
+      padding: 12px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    #filter-panel h3 { font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+                       color: #718096; letter-spacing: 0.05em; }
+
+    .filter-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .filter-row label { font-size: 0.78rem; color: #4a5568; min-width: 70px; }
+    .filter-row select, .filter-row input[type=date] {
+      flex: 1; font-size: 0.78rem; padding: 4px 6px;
+      border: 1px solid #cbd5e0; border-radius: 4px; background: white;
+    }
+
+    .toggle-group { display: flex; gap: 4px; }
+    .toggle-btn {
+      font-size: 0.73rem; padding: 3px 8px; border-radius: 4px; border: 1px solid #cbd5e0;
+      cursor: pointer; background: white; color: #4a5568; transition: all 0.15s;
+    }
+    .toggle-btn.active { background: #c53030; color: white; border-color: #c53030; }
+
+    #apply-filters {
+      align-self: flex-end; font-size: 0.78rem; padding: 5px 14px;
+      background: #c53030; color: white; border: none; border-radius: 4px;
+      cursor: pointer; font-weight: 600;
+    }
+    #apply-filters:hover { background: #9b2c2c; }
+
+    /* ── Incident list ── */
+    #incident-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    .incident-item {
+      padding: 10px 14px;
+      border-bottom: 1px solid #f0f4f8;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .incident-item:hover { background: #f7fafc; }
+    .incident-item.selected { background: #fff5f5; border-left: 3px solid #c53030; }
+
+    .incident-header {
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;
+    }
+    .incident-type {
+      font-size: 0.78rem; font-weight: 600; color: #1a202c; flex: 1;
+    }
+    .badge {
+      font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; white-space: nowrap;
+      font-weight: 600; flex-shrink: 0;
+    }
+    .badge-dispatch { background: #fed7d7; color: #c53030; }
+    .badge-switrs   { background: #bee3f8; color: #2b6cb0; }
+    .badge-bike     { background: #c6f6d5; color: #276749; }
+    .badge-ped      { background: #fefcbf; color: #744210; }
+    .badge-fatal    { background: #1a202c; color: white; }
+
+    .incident-meta {
+      font-size: 0.72rem; color: #718096; margin-top: 3px;
+    }
+    .incident-location {
+      font-size: 0.75rem; color: #4a5568; margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* ── Map ── */
+    #map { flex: 1; }
+
+    /* ── Detail panel ── */
+    #detail-panel {
+      display: none;
+      position: absolute;
+      bottom: 20px; right: 20px;
+      width: 300px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      z-index: 1000;
+      overflow: hidden;
+    }
+    #detail-panel.visible { display: block; }
+    #detail-header {
+      background: #c53030; color: white; padding: 10px 14px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    #detail-header h3 { font-size: 0.9rem; font-weight: 700; }
+    #detail-close {
+      background: none; border: none; color: white; font-size: 1.2rem;
+      cursor: pointer; line-height: 1; padding: 0 2px;
+    }
+    #detail-body { padding: 12px 14px; font-size: 0.8rem; }
+    .detail-row { display: flex; gap: 8px; margin-bottom: 6px; }
+    .detail-label { color: #718096; min-width: 90px; font-weight: 600; }
+    .detail-value { color: #1a202c; flex: 1; }
+
+    /* ── Legend ── */
+    #legend {
+      position: absolute;
+      top: 70px; right: 10px;
+      background: white;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      padding: 10px 14px;
+      z-index: 1000;
+      font-size: 0.75rem;
+    }
+    #legend h4 { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+                 color: #718096; margin-bottom: 6px; letter-spacing: 0.05em; }
+    .legend-row { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+    .legend-dot {
+      width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid rgba(0,0,0,0.2);
+    }
+
+    /* ── No-geocode badge ── */
+    #ungeocode-banner {
+      display: none;
+      background: #fffbeb; border-top: 1px solid #f6e05e;
+      padding: 6px 14px; font-size: 0.75rem; color: #744210; flex-shrink: 0;
+    }
+
+    /* ── Loading ── */
+    #loading {
+      display: none; position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,255,255,0.9); padding: 16px 24px;
+      border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+      font-size: 0.9rem; font-weight: 600; z-index: 2000;
+    }
+
+    @media (max-width: 640px) {
+      #sidebar { display: none; }
+      #detail-panel { width: calc(100vw - 20px); right: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>West Contra Costa Collision Map</h1>
+    <p>EMS dispatch transcripts vs. SWITRS official records</p>
+  </div>
+  <div id="stats-bar">
+    <span class="stat-pill" id="stat-total">— incidents</span>
+    <span class="stat-pill" id="stat-dispatch">— dispatch</span>
+    <span class="stat-pill" id="stat-switrs">— SWITRS</span>
+    <span class="stat-pill" id="stat-ratio">gap: —</span>
+  </div>
+</header>
+
+<div id="main">
+  <div id="sidebar">
+    <div id="filter-panel">
+      <h3>Filters</h3>
+      <div class="filter-row">
+        <label>Source</label>
+        <div class="toggle-group">
+          <button class="toggle-btn active" data-filter="source" data-val="all">All</button>
+          <button class="toggle-btn" data-filter="source" data-val="dispatch">Dispatch</button>
+          <button class="toggle-btn" data-filter="source" data-val="switrs">SWITRS</button>
+        </div>
+      </div>
+      <div class="filter-row">
+        <label>Type</label>
+        <div class="toggle-group">
+          <button class="toggle-btn active" data-filter="type" data-val="all">All</button>
+          <button class="toggle-btn" data-filter="type" data-val="bike">Bicycle</button>
+          <button class="toggle-btn" data-filter="type" data-val="ped">Pedestrian</button>
+        </div>
+      </div>
+      <div class="filter-row">
+        <label>From</label>
+        <input type="date" id="date-start" />
+      </div>
+      <div class="filter-row">
+        <label>To</label>
+        <input type="date" id="date-end" />
+      </div>
+      <button id="apply-filters">Apply</button>
+    </div>
+
+    <div id="ungeocode-banner"></div>
+
+    <div id="incident-list"></div>
+  </div>
+
+  <div id="map"></div>
+</div>
+
+<div id="detail-panel">
+  <div id="detail-header">
+    <h3 id="detail-title">Incident</h3>
+    <button id="detail-close">×</button>
+  </div>
+  <div id="detail-body"></div>
+</div>
+
+<div id="legend">
+  <h4>Source</h4>
+  <div class="legend-row"><div class="legend-dot" style="background:#c53030"></div>Dispatch (transcript)</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#2b6cb0"></div>SWITRS (official)</div>
+  <h4 style="margin-top:8px">Involves</h4>
+  <div class="legend-row"><div class="legend-dot" style="background:#276749; border-color:#276749"></div>Bicycle</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#744210; border-color:#744210"></div>Pedestrian</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#555"></div>Vehicle only</div>
+  <h4 style="margin-top:8px">Size</h4>
+  <div class="legend-row" style="font-size:0.72rem; color:#718096">Larger = injury reported</div>
+</div>
+
+<div id="loading">Loading incidents...</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── Map init ──────────────────────────────────────────────────────────────────
+const map = L.map('map').setView([37.935, -122.31], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  maxZoom: 19,
+}).addTo(map);
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let allFeatures = [];
+let markers = [];
+let selectedId = null;
+let filters = { source: 'all', type: 'all', dateStart: '', dateEnd: '' };
+
+// ── Marker style ──────────────────────────────────────────────────────────────
+function markerColor(props) {
+  if (props.source === 'switrs') return '#2b6cb0';
+  if (props.involves_bicycle) return '#276749';
+  if (props.involves_pedestrian) return '#744210';
+  return '#c53030';
+}
+
+function markerRadius(props) {
+  if (props.injuries_mentioned || props.severity === 'fatal') return 9;
+  if (props.severity === 'severe') return 8;
+  return 6;
+}
+
+function circleMarker(feature) {
+  const p = feature.properties;
+  const [lng, lat] = feature.geometry.coordinates;
+  return L.circleMarker([lat, lng], {
+    radius: markerRadius(p),
+    fillColor: markerColor(p),
+    color: '#fff',
+    weight: 1.5,
+    opacity: 1,
+    fillOpacity: p.source === 'dispatch' ? 0.85 : 0.55,
+  });
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render(features) {
+  // Clear existing markers
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+
+  const list = document.getElementById('incident-list');
+  list.innerHTML = '';
+
+  let ungeocodedCount = 0;
+
+  features.forEach(f => {
+    const p = f.properties;
+
+    // List item (all incidents, geocoded or not)
+    const item = document.createElement('div');
+    item.className = 'incident-item' + (p.id === selectedId ? ' selected' : '');
+    item.dataset.id = p.id;
+
+    const typeLabel = (p.incident_type || 'collision').replace(/_/g, ' ');
+    const sourceBadge = `<span class="badge badge-${p.source}">${p.source}</span>`;
+    const typeBadge = p.involves_bicycle
+      ? '<span class="badge badge-bike">bike</span>'
+      : p.involves_pedestrian
+        ? '<span class="badge badge-ped">ped</span>'
+        : '';
+    const fatalBadge = p.severity === 'fatal' ? '<span class="badge badge-fatal">fatal</span>' : '';
+
+    item.innerHTML = `
+      <div class="incident-header">
+        <span class="incident-type">${typeLabel}</span>
+        <span style="display:flex;gap:3px">${sourceBadge}${typeBadge}${fatalBadge}</span>
+      </div>
+      <div class="incident-meta">${p.collision_date || p.block_start_utc?.slice(0,10) || 'date unknown'} · ${p.jurisdiction || p.city || ''}</div>
+      <div class="incident-location">${p.location_text || '(no location)'}</div>
+    `;
+    item.addEventListener('click', () => selectIncident(p.id, features));
+    list.appendChild(item);
+
+    // Map marker (geocoded only)
+    if (f.geometry) {
+      const marker = circleMarker(f);
+      marker.on('click', () => selectIncident(p.id, features));
+      marker.addTo(map);
+      markers.push(marker);
+    } else {
+      ungeocodedCount++;
+    }
+  });
+
+  // Ungeocode banner
+  const banner = document.getElementById('ungeocode-banner');
+  if (ungeocodedCount > 0) {
+    banner.style.display = 'block';
+    banner.textContent = `${ungeocodedCount} incident${ungeocodedCount > 1 ? 's' : ''} not yet geocoded (shown in list only)`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+// ── Selection ─────────────────────────────────────────────────────────────────
+function selectIncident(id, features) {
+  selectedId = id;
+  const feature = features.find(f => f.properties.id === id);
+  if (!feature) return;
+
+  const p = feature.properties;
+
+  // Highlight list item
+  document.querySelectorAll('.incident-item').forEach(el => {
+    el.classList.toggle('selected', parseInt(el.dataset.id) === id);
+  });
+
+  // Pan map if geocoded
+  if (feature.geometry) {
+    const [lng, lat] = feature.geometry.coordinates;
+    map.panTo([lat, lng], { animate: true });
+  }
+
+  // Show detail panel
+  document.getElementById('detail-title').textContent =
+    (p.incident_type || 'collision').replace(/_/g, ' ');
+
+  const rows = [
+    ['Source',     p.source],
+    ['Date',       p.collision_date || p.block_start_utc?.slice(0,10) || '—'],
+    ['Jurisdiction', p.jurisdiction || p.city || '—'],
+    ['Location',   p.location_text || '—'],
+    ['Involves',   [p.involves_bicycle && 'bicycle', p.involves_pedestrian && 'pedestrian'].filter(Boolean).join(', ') || 'vehicle only'],
+    ['Injuries',   p.injuries_mentioned == null ? '—' : p.injuries_mentioned ? 'yes' : 'no'],
+    ['Severity',   p.severity || '—'],
+    ['Confidence', p.confidence != null ? (p.confidence * 100).toFixed(0) + '%' : '—'],
+    ['Geocoded',   feature.geometry ? 'yes' : 'no'],
+  ];
+
+  document.getElementById('detail-body').innerHTML = rows.map(([label, val]) =>
+    `<div class="detail-row"><span class="detail-label">${label}</span><span class="detail-value">${val}</span></div>`
+  ).join('');
+
+  document.getElementById('detail-panel').classList.add('visible');
+}
+
+document.getElementById('detail-close').addEventListener('click', () => {
+  document.getElementById('detail-panel').classList.remove('visible');
+  selectedId = null;
+  document.querySelectorAll('.incident-item').forEach(el => el.classList.remove('selected'));
+});
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('.toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const group = btn.dataset.filter;
+    document.querySelectorAll(`.toggle-btn[data-filter="${group}"]`).forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filters[group === 'source' ? 'source' : 'type'] = btn.dataset.val;
+  });
+});
+
+document.getElementById('apply-filters').addEventListener('click', () => {
+  filters.dateStart = document.getElementById('date-start').value;
+  filters.dateEnd   = document.getElementById('date-end').value;
+  loadAndRender();
+});
+
+function buildQueryString() {
+  const params = new URLSearchParams();
+  if (filters.source !== 'all') params.set('source', filters.source);
+  if (filters.type === 'bike')  params.set('involves_bicycle', 'true');
+  if (filters.type === 'ped')   params.set('involves_pedestrian', 'true');
+  if (filters.dateStart) params.set('date_start', filters.dateStart);
+  if (filters.dateEnd)   params.set('date_end',   filters.dateEnd);
+  params.set('limit', '5000');
+  return params.toString();
+}
+
+// ── Load data ─────────────────────────────────────────────────────────────────
+async function loadAndRender() {
+  document.getElementById('loading').style.display = 'block';
+  try {
+    const resp = await fetch(`/incidents?${buildQueryString()}`);
+    const geojson = await resp.json();
+    allFeatures = geojson.features;
+
+    render(allFeatures);
+    updateStats(geojson.meta);
+  } catch (err) {
+    console.error('Failed to load incidents:', err);
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+async function updateStats(meta) {
+  document.getElementById('stat-total').textContent    = `${meta.total} incidents`;
+  document.getElementById('stat-dispatch').textContent = `${meta.dispatch} dispatch`;
+  document.getElementById('stat-switrs').textContent   = `${meta.switrs} SWITRS`;
+
+  // Fetch gap ratio from summary endpoint
+  try {
+    const params = new URLSearchParams();
+    if (filters.dateStart) params.set('date_start', filters.dateStart);
+    if (filters.dateEnd)   params.set('date_end',   filters.dateEnd);
+    const s = await fetch(`/incidents/summary?${params}`);
+    const summary = await s.json();
+    const ratio = summary.total_switrs > 0
+      ? (summary.total_dispatch / summary.total_switrs).toFixed(1) + 'x'
+      : '—';
+    document.getElementById('stat-ratio').textContent = `gap: ${ratio}`;
+  } catch (_) {}
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadAndRender();
+</script>
+</body>
+</html>
