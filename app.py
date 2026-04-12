@@ -12,12 +12,22 @@ from typing import Optional
 
 # ── Seed database before any SQLAlchemy imports ──────────────────────────────
 def _seed_if_needed():
-    import gzip, shutil
+    import gzip, shutil, sqlite3
     seed_file = os.path.join(os.path.dirname(__file__), "collision_map.db.gz")
     db_path = os.environ.get("DB_PATH", "./collision_map.db")
     if not os.path.exists(seed_file):
         return
-    if not os.path.exists(db_path) or os.path.getsize(db_path) < 10000:
+    # Check if db has data already
+    needs_seed = not os.path.exists(db_path)
+    if not needs_seed:
+        try:
+            conn = sqlite3.connect(db_path)
+            count = conn.execute("SELECT count(*) FROM incidents").fetchone()[0]
+            conn.close()
+            needs_seed = count == 0
+        except Exception:
+            needs_seed = True
+    if needs_seed:
         print(f"Seeding database from {seed_file} → {db_path}")
         with gzip.open(seed_file, "rb") as f_in, open(db_path, "wb") as f_out:
             shutil.copyfileobj(f_in, f_out)
