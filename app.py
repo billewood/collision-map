@@ -10,6 +10,21 @@ import os
 from datetime import date
 from typing import Optional
 
+# ── Seed database before any SQLAlchemy imports ──────────────────────────────
+def _seed_if_needed():
+    import gzip, shutil
+    seed_file = os.path.join(os.path.dirname(__file__), "collision_map.db.gz")
+    db_path = os.environ.get("DB_PATH", "./collision_map.db")
+    if not os.path.exists(seed_file):
+        return
+    if not os.path.exists(db_path) or os.path.getsize(db_path) < 10000:
+        print(f"Seeding database from {seed_file} → {db_path}")
+        with gzip.open(seed_file, "rb") as f_in, open(db_path, "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
+        print(f"Seed complete: {os.path.getsize(db_path)} bytes")
+
+_seed_if_needed()
+
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -37,27 +52,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ── Startup ───────────────────────────────────────────────────────────────────
 
-SEED_FILE = os.path.join(os.path.dirname(__file__), "collision_map.db.gz")
-
 @app.on_event("startup")
 def startup():
     db.create_tables()
-    # If the database is empty and a seed file exists, decompress it
-    if os.path.exists(SEED_FILE):
-        session = db.SessionLocal()
-        count = session.query(db.Incident).count()
-        session.close()
-        if count == 0:
-            import gzip, shutil
-            db_path = os.environ.get("DB_PATH", "./collision_map.db")
-            print(f"Database empty — seeding from {SEED_FILE}")
-            with gzip.open(SEED_FILE, "rb") as f_in, open(db_path, "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
-            # Reconnect engine to pick up the new file
-            db.engine.dispose()
-            session = db.SessionLocal()
-            print(f"Seeded: {session.query(db.Incident).count()} incidents")
-            session.close()
 
 
 # ── UI ────────────────────────────────────────────────────────────────────────
