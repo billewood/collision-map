@@ -420,11 +420,25 @@ function markerStyle(props, selected) {
   };
 }
 
+// Jitter overlapping points so stacked dots fan out
+const _jitterSeen = {};
+function jitter(lat, lng) {
+  const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+  _jitterSeen[key] = (_jitterSeen[key] || 0) + 1;
+  const n = _jitterSeen[key] - 1;
+  if (n === 0) return [lat, lng];
+  const angle = (n * 137.508) * Math.PI / 180;  // golden angle spiral
+  const r = 0.00015 * Math.sqrt(n);              // ~15m per step
+  return [lat + r * Math.cos(angle), lng + r * Math.sin(angle)];
+}
+
 function makeMarker(feature) {
   const p = feature.properties;
   const [lng, lat] = feature.geometry.coordinates;
-  const m = L.circleMarker([lat, lng], markerStyle(p, false));
+  const [jLat, jLng] = jitter(lat, lng);
+  const m = L.circleMarker([jLat, jLng], markerStyle(p, false));
   m._incidentProps = p;
+  m._origLatLng = [lat, lng];  // keep original for pan-to
   return m;
 }
 
@@ -438,6 +452,9 @@ function render(features) {
   list.innerHTML = '';
 
   let ungeocodedCount = 0;
+
+  // Reset jitter state for fresh layout
+  for (const k in _jitterSeen) delete _jitterSeen[k];
 
   // Build list items in date order; collect geocoded features separately for z-sorted map rendering
   const geocodedFeatures = [];
