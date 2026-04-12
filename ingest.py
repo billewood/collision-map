@@ -22,6 +22,62 @@ import database as db
 from database import Incident, ImportRun, SessionLocal, create_tables
 
 
+def ingest_switrs_df_upsert(df, city: str, session) -> tuple[int, int, int]:
+    """
+    Insert new SWITRS rows or update existing ones without touching geocoded coordinates.
+    Returns (imported, updated, skipped).
+    """
+    imported = updated = skipped = 0
+    for _, inc in df.iterrows():
+        case_id = str(inc.get("switrs_case_id", "")) or None
+        if not case_id:
+            skipped += 1
+            continue
+
+        existing = session.query(Incident).filter_by(switrs_case_id=case_id).first()
+
+        def _int(val):
+            try: return int(val) if pd.notna(val) else None
+            except (TypeError, ValueError): return None
+
+        if existing:
+            # Only update non-geocode fields — preserve lat/lon/geocoded/source_file
+            existing.number_killed  = _int(inc.get("number_killed"))
+            existing.number_injured = _int(inc.get("number_injured"))
+            existing.party_ages     = inc.get("party_ages") or None
+            existing.involves_bicycle    = bool(inc.get("involves_bicycle"))
+            existing.involves_pedestrian = bool(inc.get("involves_pedestrian"))
+            existing.injuries_mentioned  = inc.get("injuries_mentioned")
+            existing.severity       = inc.get("severity")
+            existing.incident_type  = inc.get("incident_type")
+            updated += 1
+        else:
+            lat = inc.get("latitude") if pd.notna(inc.get("latitude", float("nan"))) else None
+            lon = inc.get("longitude") if pd.notna(inc.get("longitude", float("nan"))) else None
+            row = Incident(
+                source="switrs", city=city,
+                jurisdiction=inc.get("jurisdiction") or inc.get("city"),
+                location_text=inc.get("location"),
+                latitude=lat, longitude=lon,
+                geocoded=lat is not None and lon is not None,
+                incident_type=inc.get("incident_type"),
+                involves_bicycle=bool(inc.get("involves_bicycle")),
+                involves_pedestrian=bool(inc.get("involves_pedestrian")),
+                injuries_mentioned=inc.get("injuries_mentioned"),
+                severity=inc.get("severity"),
+                collision_date=str(inc["collision_date"])[:10] if pd.notna(inc.get("collision_date")) else None,
+                switrs_case_id=case_id,
+                number_killed=_int(inc.get("number_killed")),
+                number_injured=_int(inc.get("number_injured")),
+                party_ages=inc.get("party_ages") or None,
+            )
+            session.add(row)
+            imported += 1
+
+    session.commit()
+    return imported, updated, skipped
+
+
 def _severity_from_switrs(code) -> str | None:
     mapping = {1: "fatal", 2: "severe", 3: "other", 4: "complaint"}
     try:
@@ -103,6 +159,10 @@ def ingest_switrs_df(df: pd.DataFrame, city: str, session, overwrite: bool = Fal
         lat = inc.get("latitude") if pd.notna(inc.get("latitude", float("nan"))) else None
         lon = inc.get("longitude") if pd.notna(inc.get("longitude", float("nan"))) else None
 
+        def _int(val):
+            try: return int(val) if pd.notna(val) else None
+            except (TypeError, ValueError): return None
+
         row = Incident(
             source="switrs",
             city=city,
@@ -118,6 +178,9 @@ def ingest_switrs_df(df: pd.DataFrame, city: str, session, overwrite: bool = Fal
             severity=_severity_from_switrs(inc.get("collision_severity")),
             collision_date=str(inc["collision_date"])[:10] if pd.notna(inc.get("collision_date")) else None,
             switrs_case_id=case_id,
+            number_killed=_int(inc.get("number_killed")),
+            number_injured=_int(inc.get("number_injured")),
+            party_ages=inc.get("party_ages") or None,
         )
         session.add(row)
         imported += 1

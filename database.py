@@ -58,6 +58,11 @@ class Incident(Base):
     collision_date = Column(String, nullable=True, index=True)  # YYYY-MM-DD
     block_start_utc = Column(String, nullable=True)             # ISO timestamp of audio block
 
+    # Counts & party detail
+    number_killed = Column(Integer, nullable=True)
+    number_injured = Column(Integer, nullable=True)
+    party_ages = Column(String, nullable=True)   # comma-separated, e.g. "28, 45, 33"
+
     # Quality / provenance
     confidence = Column(Float, nullable=True)     # 0.0–1.0, dispatch source only
     cut_off = Column(Boolean, default=False)       # transcript cut off mid-dispatch
@@ -86,6 +91,26 @@ class ImportRun(Base):
 
 def create_tables():
     Base.metadata.create_all(bind=engine)
+    # Add new columns to existing DB without dropping the table
+    _migrate_add_columns([
+        ("number_killed",  "INTEGER"),
+        ("number_injured", "INTEGER"),
+        ("party_ages",     "TEXT"),
+    ])
+
+
+def _migrate_add_columns(cols: list[tuple[str, str]]) -> None:
+    """Add columns to incidents table if they don't already exist (SQLite safe)."""
+    with engine.connect() as conn:
+        existing = {row[1] for row in conn.execute(
+            __import__("sqlalchemy").text("PRAGMA table_info(incidents)")
+        )}
+        for col_name, col_type in cols:
+            if col_name not in existing:
+                conn.execute(__import__("sqlalchemy").text(
+                    f"ALTER TABLE incidents ADD COLUMN {col_name} {col_type}"
+                ))
+                conn.commit()
 
 
 def get_db():

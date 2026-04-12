@@ -55,6 +55,7 @@ def serve_ui():
 def list_incidents(
     source: Optional[str] = Query(None, description="dispatch | switrs | all"),
     city: Optional[str] = Query(None),
+    cities: Optional[str] = Query(None, description="Comma-separated city keys"),
     jurisdiction: Optional[str] = Query(None),
     involves_bicycle: Optional[bool] = Query(None),
     involves_pedestrian: Optional[bool] = Query(None),
@@ -74,7 +75,10 @@ def list_incidents(
 
     if source and source != "all":
         q = q.filter(Incident.source == source)
-    if city:
+    if cities:
+        city_list = [c.strip() for c in cities.split(',') if c.strip()]
+        q = q.filter(Incident.city.in_(city_list))
+    elif city:
         q = q.filter(Incident.city == city)
     if jurisdiction:
         q = q.filter(Incident.jurisdiction.ilike(f"%{jurisdiction}%"))
@@ -119,6 +123,10 @@ def list_incidents(
                 "location_text": r.location_text,
                 "confidence": r.confidence,
                 "cut_off": r.cut_off,
+                "source_file": r.source_file,
+                "number_killed": r.number_killed,
+                "number_injured": r.number_injured,
+                "party_ages": r.party_ages,
             },
         })
 
@@ -174,6 +182,33 @@ def summary(
 
     return {"months": table, "total_dispatch": sum(r["dispatch"] for r in table),
             "total_switrs": sum(r["switrs"] for r in table)}
+
+
+@app.get("/meta")
+def meta(session: Session = Depends(db.get_db)):
+    """Return date range and source coverage for the current database."""
+    from sqlalchemy import func
+    q = session.query(
+        Incident.source,
+        func.min(Incident.collision_date).label("date_min"),
+        func.max(Incident.collision_date).label("date_max"),
+        func.count(Incident.id).label("count"),
+    ).filter(Incident.collision_date.isnot(None)).group_by(Incident.source)
+
+    result = {}
+    overall_min, overall_max = None, None
+    for row in q.all():
+        result[row.source] = {
+            "date_min": row.date_min,
+            "date_max": row.date_max,
+            "count": row.count,
+        }
+        if overall_min is None or row.date_min < overall_min:
+            overall_min = row.date_min
+        if overall_max is None or row.date_max > overall_max:
+            overall_max = row.date_max
+
+    return {"sources": result, "date_min": overall_min, "date_max": overall_max}
 
 
 @app.get("/incidents/{incident_id}")

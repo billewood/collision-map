@@ -180,6 +180,22 @@
       padding: 6px 14px; font-size: 0.75rem; color: #744210; flex-shrink: 0;
     }
 
+    /* ── Coverage note ── */
+    #coverage-note {
+      position: absolute;
+      bottom: 28px; left: 10px;
+      background: rgba(255,255,255,0.92);
+      border-radius: 5px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.15);
+      padding: 6px 10px;
+      font-size: 0.72rem;
+      color: #4a5568;
+      z-index: 1000;
+      max-width: 260px;
+      line-height: 1.4;
+    }
+    #coverage-note strong { color: #1a202c; }
+
     /* ── Loading ── */
     #loading {
       display: none; position: absolute; top: 50%; left: 50%;
@@ -188,6 +204,49 @@
       border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.15);
       font-size: 0.9rem; font-weight: 600; z-index: 2000;
     }
+
+    /* ── About modal ── */
+    #about-btn {
+      background: rgba(255,255,255,0.2); border: none; color: white;
+      font-size: 0.78rem; padding: 4px 10px; border-radius: 12px;
+      cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    }
+    #about-btn:hover { background: rgba(255,255,255,0.35); }
+
+    #about-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 3000;
+      align-items: center; justify-content: center;
+    }
+    #about-overlay.visible { display: flex; }
+    #about-modal {
+      background: white; border-radius: 10px; max-width: 520px; width: calc(100vw - 40px);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.3); overflow: hidden;
+    }
+    #about-modal header {
+      background: #c53030; color: white; padding: 14px 18px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    #about-modal header h2 { font-size: 1rem; font-weight: 700; }
+    #about-close {
+      background: none; border: none; color: white;
+      font-size: 1.4rem; cursor: pointer; line-height: 1; padding: 0 2px;
+    }
+    #about-body {
+      padding: 18px 20px; font-size: 0.85rem; line-height: 1.6; color: #2d3748;
+    }
+    #about-body h3 { font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+                     color: #718096; letter-spacing: 0.05em; margin: 14px 0 5px; }
+    #about-body p { margin-bottom: 10px; }
+    #about-body .stat-row {
+      display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
+    }
+    #about-body .stat-box {
+      flex: 1; min-width: 100px; background: #f7fafc; border-radius: 6px;
+      padding: 8px 12px; text-align: center;
+    }
+    #about-body .stat-box .num { font-size: 1.4rem; font-weight: 700; color: #c53030; }
+    #about-body .stat-box .lbl { font-size: 0.72rem; color: #718096; }
 
     @media (max-width: 640px) {
       #sidebar { display: none; }
@@ -200,26 +259,72 @@
 <header>
   <div>
     <h1>West Contra Costa Collision Map</h1>
-    <p>EMS dispatch transcripts vs. SWITRS official records</p>
+    <p><s>EMS dispatch transcripts vs.</s> SWITRS official records</p>
   </div>
   <div id="stats-bar">
     <span class="stat-pill" id="stat-total">— incidents</span>
     <span class="stat-pill" id="stat-dispatch">— dispatch</span>
     <span class="stat-pill" id="stat-switrs">— SWITRS</span>
     <span class="stat-pill" id="stat-ratio">gap: —</span>
+    <button id="about-btn">About</button>
   </div>
 </header>
+
+<div id="about-overlay">
+  <div id="about-modal">
+    <header>
+      <h2>West Contra Costa Collision Map</h2>
+      <button id="about-close">×</button>
+    </header>
+    <div id="about-body">
+      <div class="stat-row">
+        <div class="stat-box"><div class="num">3,189</div><div class="lbl">crashes mapped</div></div>
+        <div class="stat-box"><div class="num">5</div><div class="lbl">jurisdictions</div></div>
+        <div class="stat-box"><div class="num">2014–2025</div><div class="lbl">date range</div></div>
+      </div>
+
+      <p>This map tracks <strong>bicycle and pedestrian collisions</strong> in El Cerrito, Richmond, Albany, and Berkeley — comparing official SWITRS records against EMS dispatch radio transcripts to measure how many crashes go unreported.</p>
+
+      <h3>Data sources</h3>
+      <p><strong>SWITRS</strong> (currently shown) — California's official Statewide Integrated Traffic Records System, exported from <a href="https://tims.berkeley.edu" target="_blank">tims.berkeley.edu</a>. Covers only crashes that were reported to law enforcement.</p>
+      <p><strong>EMS Dispatch</strong> (coming soon) — extracted from Broadcastify scanner archive recordings using Whisper transcription and Claude. Will reveal crashes that were responded to by EMS but never filed as police reports.</p>
+
+      <h3>Methodology</h3>
+      <p>About 40% of SWITRS records lack GPS coordinates and are geocoded using Claude (address normalization) and the Google Maps API. Geocoded incidents are validated against a West Contra Costa bounding box.</p>
+    </div>
+  </div>
+</div>
 
 <div id="main">
   <div id="sidebar">
     <div id="filter-panel">
       <h3>Filters</h3>
-      <div class="filter-row">
-        <label>Source</label>
-        <div class="toggle-group">
-          <button class="toggle-btn active" data-filter="source" data-val="all">All</button>
-          <button class="toggle-btn" data-filter="source" data-val="dispatch">Dispatch</button>
-          <button class="toggle-btn" data-filter="source" data-val="switrs">SWITRS</button>
+      <div class="filter-row" style="flex-direction:column;gap:4px;align-items:flex-start">
+        <label style="font-size:0.78rem;font-weight:700;text-transform:uppercase;color:#718096;letter-spacing:0.05em">Sources</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;cursor:pointer">
+          <input type="checkbox" id="show-switrs" checked style="accent-color:#276749" />
+          SWITRS <span style="font-size:0.7rem;color:#718096">(official records)</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#a0aec0;cursor:not-allowed" title="Dispatch data not yet loaded">
+          <input type="checkbox" id="show-dispatch" disabled style="cursor:not-allowed" />
+          Dispatch <span style="font-size:0.7rem;background:#e2e8f0;color:#718096;padding:1px 5px;border-radius:8px">coming soon</span>
+        </label>
+      </div>
+      <div class="filter-row" style="flex-direction:column;gap:4px;align-items:flex-start">
+        <label style="font-size:0.78rem;font-weight:700;text-transform:uppercase;color:#718096;letter-spacing:0.05em">City</label>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;cursor:pointer">
+            <input type="checkbox" class="city-check" value="el_cerrito" checked style="accent-color:#c53030" /> El Cerrito
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;cursor:pointer">
+            <input type="checkbox" class="city-check" value="richmond" checked style="accent-color:#c53030" /> Richmond
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;cursor:pointer">
+            <input type="checkbox" class="city-check" value="albany" checked style="accent-color:#c53030" /> Albany
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;cursor:pointer">
+            <input type="checkbox" class="city-check" value="berkeley" checked style="accent-color:#c53030" /> Berkeley
+          </label>
         </div>
       </div>
       <div class="filter-row">
@@ -258,71 +363,84 @@
 </div>
 
 <div id="legend">
-  <h4>Source</h4>
-  <div class="legend-row"><div class="legend-dot" style="background:#c53030"></div>Dispatch (transcript)</div>
-  <div class="legend-row"><div class="legend-dot" style="background:#2b6cb0"></div>SWITRS (official)</div>
-  <h4 style="margin-top:8px">Involves</h4>
-  <div class="legend-row"><div class="legend-dot" style="background:#276749; border-color:#276749"></div>Bicycle</div>
-  <div class="legend-row"><div class="legend-dot" style="background:#744210; border-color:#744210"></div>Pedestrian</div>
-  <div class="legend-row"><div class="legend-dot" style="background:#555"></div>Vehicle only</div>
-  <h4 style="margin-top:8px">Size</h4>
-  <div class="legend-row" style="font-size:0.72rem; color:#718096">Larger = injury reported</div>
+  <h4>Collision type</h4>
+  <div class="legend-row"><div class="legend-dot" style="background:#276749"></div>Bicycle</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#c07a00"></div>Pedestrian</div>
+  <h4 style="margin-top:8px">Size = severity</h4>
+  <div class="legend-row"><svg width="26" height="26"><circle cx="13" cy="13" r="13" fill="#718096" fill-opacity="0.72" stroke="#fff" stroke-width="1.5"/></svg><span style="font-size:0.72rem">Fatal</span></div>
+  <div class="legend-row"><svg width="18" height="18"><circle cx="9" cy="9" r="9" fill="#718096" fill-opacity="0.72" stroke="#fff" stroke-width="1.5"/></svg><span style="font-size:0.72rem">Severe injury</span></div>
+  <div class="legend-row"><svg width="12" height="12"><circle cx="6" cy="6" r="6" fill="#718096" fill-opacity="0.72" stroke="#fff" stroke-width="1.5"/></svg><span style="font-size:0.72rem">Other visible injury</span></div>
+  <div class="legend-row"><svg width="8" height="8"><circle cx="4" cy="4" r="4" fill="#718096" fill-opacity="0.72" stroke="#fff" stroke-width="1.5"/></svg><span style="font-size:0.72rem">Complaint of pain</span></div>
 </div>
 
+<div id="coverage-note">Loading data coverage…</div>
 <div id="loading">Loading incidents...</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 // ── Map init ──────────────────────────────────────────────────────────────────
 const map = L.map('map').setView([37.935, -122.31], 12);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
   maxZoom: 19,
 }).addTo(map);
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let allFeatures = [];
-let markers = [];
+let markerById = {};   // id → L.circleMarker, for bold-on-select
 let selectedId = null;
-let filters = { source: 'all', type: 'all', dateStart: '', dateEnd: '' };
+const ALL_CITIES = ['el_cerrito', 'richmond', 'albany', 'berkeley'];
+let filters = { showSwitrs: true, showDispatch: false, type: 'all', cities: new Set(ALL_CITIES), dateStart: '', dateEnd: '' };
 
 // ── Marker style ──────────────────────────────────────────────────────────────
 function markerColor(props) {
-  if (props.source === 'switrs') return '#2b6cb0';
-  if (props.involves_bicycle) return '#276749';
-  if (props.involves_pedestrian) return '#744210';
-  return '#c53030';
+  if (props.involves_bicycle)    return '#276749';
+  if (props.involves_pedestrian) return '#c07a00';
+  return '#718096';
 }
 
-function markerRadius(props) {
-  if (props.injuries_mentioned || props.severity === 'fatal') return 9;
-  if (props.severity === 'severe') return 8;
-  return 6;
+function markerRadius(props, selected) {
+  const base = props.severity === 'fatal'             ? 13
+             : props.severity === 'severe_injury'     ? 9
+             : props.severity === 'other_visible_injury' ? 6
+             : props.severity === 'complaint_of_pain' ? 4
+             : props.injuries_mentioned               ? 6
+             : 4;
+  return selected ? base + 3 : base;
 }
 
-function circleMarker(feature) {
+function markerStyle(props, selected) {
+  return {
+    radius:      markerRadius(props, selected),
+    fillColor:   markerColor(props),
+    color:       selected ? '#1a202c' : '#fff',
+    weight:      selected ? 3.5 : 1.5,
+    opacity:     1,
+    fillOpacity: selected ? 0.95 : 0.72,
+  };
+}
+
+function makeMarker(feature) {
   const p = feature.properties;
   const [lng, lat] = feature.geometry.coordinates;
-  return L.circleMarker([lat, lng], {
-    radius: markerRadius(p),
-    fillColor: markerColor(p),
-    color: '#fff',
-    weight: 1.5,
-    opacity: 1,
-    fillOpacity: p.source === 'dispatch' ? 0.85 : 0.55,
-  });
+  const m = L.circleMarker([lat, lng], markerStyle(p, false));
+  m._incidentProps = p;
+  return m;
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
 function render(features) {
   // Clear existing markers
-  markers.forEach(m => map.removeLayer(m));
-  markers = [];
+  Object.values(markerById).forEach(m => map.removeLayer(m));
+  markerById = {};
 
   const list = document.getElementById('incident-list');
   list.innerHTML = '';
 
   let ungeocodedCount = 0;
+
+  // Build list items in date order; collect geocoded features separately for z-sorted map rendering
+  const geocodedFeatures = [];
 
   features.forEach(f => {
     const p = f.properties;
@@ -332,36 +450,54 @@ function render(features) {
     item.className = 'incident-item' + (p.id === selectedId ? ' selected' : '');
     item.dataset.id = p.id;
 
-    const typeLabel = (p.incident_type || 'collision').replace(/_/g, ' ');
+    // Primary label: who was involved, not the collision mechanics
+    const typeLabel = p.involves_bicycle   ? 'Bicycle crash'
+                    : p.involves_pedestrian ? 'Pedestrian crash'
+                    : (p.incident_type || 'collision').replace(/_/g, ' ');
+
     const sourceBadge = `<span class="badge badge-${p.source}">${p.source}</span>`;
-    const typeBadge = p.involves_bicycle
-      ? '<span class="badge badge-bike">bike</span>'
-      : p.involves_pedestrian
-        ? '<span class="badge badge-ped">ped</span>'
-        : '';
-    const fatalBadge = p.severity === 'fatal' ? '<span class="badge badge-fatal">fatal</span>' : '';
+    const severityBadge = p.severity === 'fatal'        ? '<span class="badge badge-fatal">fatal</span>'
+                        : p.severity === 'severe_injury' ? '<span class="badge" style="background:#fed7d7;color:#c53030">severe</span>'
+                        : '';
+
+    // Injuries line
+    const injuryParts = [];
+    if (p.number_killed > 0) injuryParts.push(`${p.number_killed} killed`);
+    if (p.number_injured > 0) injuryParts.push(`${p.number_injured} injured`);
+    const injuryLine = injuryParts.length ? injuryParts.join(', ') : (p.injuries_mentioned ? 'injuries reported' : '');
+
+    // Ages line
+    const agesLine = p.party_ages ? `Ages: ${p.party_ages}` : '';
 
     item.innerHTML = `
       <div class="incident-header">
         <span class="incident-type">${typeLabel}</span>
-        <span style="display:flex;gap:3px">${sourceBadge}${typeBadge}${fatalBadge}</span>
+        <span style="display:flex;gap:3px">${sourceBadge}${severityBadge}</span>
       </div>
       <div class="incident-meta">${p.collision_date || p.block_start_utc?.slice(0,10) || 'date unknown'} · ${p.jurisdiction || p.city || ''}</div>
       <div class="incident-location">${p.location_text || '(no location)'}</div>
+      ${injuryLine ? `<div class="incident-meta" style="color:#c53030">${injuryLine}</div>` : ''}
+      ${agesLine   ? `<div class="incident-meta">${agesLine}</div>` : ''}
     `;
     item.addEventListener('click', () => selectIncident(p.id, features));
     list.appendChild(item);
 
-    // Map marker (geocoded only)
     if (f.geometry) {
-      const marker = circleMarker(f);
-      marker.on('click', () => selectIncident(p.id, features));
-      marker.addTo(map);
-      markers.push(marker);
+      geocodedFeatures.push(f);
     } else {
       ungeocodedCount++;
     }
   });
+
+  // Add markers largest-first so smaller circles render on top
+  geocodedFeatures
+    .sort((a, b) => markerRadius(b.properties, false) - markerRadius(a.properties, false))
+    .forEach(f => {
+      const marker = makeMarker(f);
+      marker.on('click', () => selectIncident(f.properties.id, features));
+      marker.addTo(map);
+      markerById[f.properties.id] = marker;
+    });
 
   // Ungeocode banner
   const banner = document.getElementById('ungeocode-banner');
@@ -375,16 +511,31 @@ function render(features) {
 
 // ── Selection ─────────────────────────────────────────────────────────────────
 function selectIncident(id, features) {
+  // Unbold previous marker
+  if (selectedId && markerById[selectedId]) {
+    const prev = markerById[selectedId];
+    prev.setStyle(markerStyle(prev._incidentProps, false));
+    prev.bringToBack();
+  }
+
   selectedId = id;
   const feature = features.find(f => f.properties.id === id);
   if (!feature) return;
 
   const p = feature.properties;
 
-  // Highlight list item
+  // Bold new marker
+  if (markerById[id]) {
+    markerById[id].setStyle(markerStyle(p, true));
+    markerById[id].bringToFront();
+  }
+
+  // Highlight list item and scroll it into view
   document.querySelectorAll('.incident-item').forEach(el => {
     el.classList.toggle('selected', parseInt(el.dataset.id) === id);
   });
+  const listItem = document.querySelector(`.incident-item[data-id="${id}"]`);
+  if (listItem) listItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   // Pan map if geocoded
   if (feature.geometry) {
@@ -394,7 +545,9 @@ function selectIncident(id, features) {
 
   // Show detail panel
   document.getElementById('detail-title').textContent =
-    (p.incident_type || 'collision').replace(/_/g, ' ');
+    p.involves_bicycle   ? 'Bicycle crash'
+    : p.involves_pedestrian ? 'Pedestrian crash'
+    : (p.incident_type || 'collision').replace(/_/g, ' ');
 
   const rows = [
     ['Source',     p.source],
@@ -416,6 +569,10 @@ function selectIncident(id, features) {
 }
 
 document.getElementById('detail-close').addEventListener('click', () => {
+  if (selectedId && markerById[selectedId]) {
+    const m = markerById[selectedId];
+    m.setStyle(markerStyle(m._incidentProps, false));
+  }
   document.getElementById('detail-panel').classList.remove('visible');
   selectedId = null;
   document.querySelectorAll('.incident-item').forEach(el => el.classList.remove('selected'));
@@ -427,7 +584,21 @@ document.querySelectorAll('.toggle-btn').forEach(btn => {
     const group = btn.dataset.filter;
     document.querySelectorAll(`.toggle-btn[data-filter="${group}"]`).forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    filters[group === 'source' ? 'source' : 'type'] = btn.dataset.val;
+    filters.type = btn.dataset.val;
+  });
+});
+
+document.getElementById('show-switrs').addEventListener('change', e => {
+  filters.showSwitrs = e.target.checked;
+  loadAndRender();
+});
+
+document.querySelectorAll('.city-check').forEach(cb => {
+  cb.addEventListener('change', () => {
+    filters.cities = new Set(
+      [...document.querySelectorAll('.city-check:checked')].map(el => el.value)
+    );
+    loadAndRender();
   });
 });
 
@@ -439,7 +610,15 @@ document.getElementById('apply-filters').addEventListener('click', () => {
 
 function buildQueryString() {
   const params = new URLSearchParams();
-  if (filters.source !== 'all') params.set('source', filters.source);
+
+  // Source filtering: if only one source active, pass it; otherwise omit (= all)
+  if (filters.showSwitrs && !filters.showDispatch) params.set('source', 'switrs');
+  else if (!filters.showSwitrs && filters.showDispatch) params.set('source', 'dispatch');
+  // both or neither → don't filter by source (show all or nothing handled in render)
+
+  if (filters.cities.size > 0 && filters.cities.size < ALL_CITIES.length) {
+    params.set('cities', [...filters.cities].join(','));
+  }
   if (filters.type === 'bike')  params.set('involves_bicycle', 'true');
   if (filters.type === 'ped')   params.set('involves_pedestrian', 'true');
   if (filters.dateStart) params.set('date_start', filters.dateStart);
@@ -484,8 +663,54 @@ async function updateStats(meta) {
   } catch (_) {}
 }
 
+// ── About modal ───────────────────────────────────────────────────────────────
+document.getElementById('about-btn').addEventListener('click', () => {
+  document.getElementById('about-overlay').classList.add('visible');
+});
+document.getElementById('about-close').addEventListener('click', () => {
+  document.getElementById('about-overlay').classList.remove('visible');
+});
+document.getElementById('about-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget)
+    document.getElementById('about-overlay').classList.remove('visible');
+});
+
+
 // ── Init ──────────────────────────────────────────────────────────────────────
-loadAndRender();
+async function init() {
+  try {
+    const resp = await fetch('/meta');
+    const meta = await resp.json();
+
+    // Pre-fill date filters with the earliest and latest dates in the DB
+    if (meta.date_min) {
+      document.getElementById('date-start').value = meta.date_min;
+      filters.dateStart = meta.date_min;
+    }
+    if (meta.date_max) {
+      document.getElementById('date-end').value = meta.date_max;
+      filters.dateEnd = meta.date_max;
+    }
+
+    // Build coverage note
+    const parts = [];
+    const switrs = meta.sources?.switrs;
+    if (switrs) {
+      parts.push(`<strong>SWITRS</strong> ${switrs.date_min?.slice(0,4)}–${switrs.date_max?.slice(0,4)} · ${switrs.count} crashes`);
+    }
+    const dispatch = meta.sources?.dispatch;
+    if (dispatch) {
+      parts.push(`<strong>Dispatch</strong> ${dispatch.date_min?.slice(0,7)}–${dispatch.date_max?.slice(0,7)} · ${dispatch.count} incidents`);
+    }
+    document.getElementById('coverage-note').innerHTML = parts.join('<br>');
+  } catch (_) {
+    document.getElementById('coverage-note').style.display = 'none';
+  }
+
+  loadAndRender();
+}
+
+init();
 </script>
 </body>
 </html>
