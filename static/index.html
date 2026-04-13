@@ -250,20 +250,12 @@
 
     /* ── Box select ── */
     #select-btn {
-      position: absolute;
-      top: 10px; right: 10px;
-      z-index: 1000;
-      background: white;
-      border: 2px solid rgba(0,0,0,0.2);
-      border-radius: 4px;
-      padding: 6px 12px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      cursor: pointer;
-      color: #4a5568;
+      background: rgba(255,255,255,0.2); border: none; color: white;
+      font-size: 0.78rem; padding: 4px 10px; border-radius: 12px;
+      cursor: pointer; white-space: nowrap; flex-shrink: 0;
     }
-    #select-btn:hover { background: #f7fafc; }
-    #select-btn.active { background: #c53030; color: white; border-color: #c53030; }
+    #select-btn:hover { background: rgba(255,255,255,0.35); }
+    #select-btn.active { background: white; color: #c53030; }
 
     #download-bar {
       display: none;
@@ -310,6 +302,7 @@
     <span class="stat-pill" id="stat-dispatch">— dispatch</span>
     <span class="stat-pill" id="stat-switrs">— SWITRS</span>
     <span class="stat-pill" id="stat-ratio">gap: —</span>
+    <button id="select-btn" title="Draw a rectangle to select incidents">Select Area</button>
     <button id="about-btn">About</button>
   </div>
 </header>
@@ -417,7 +410,6 @@
   <div class="legend-row"><svg width="8" height="8"><circle cx="4" cy="4" r="4" fill="#718096" fill-opacity="0.72" stroke="#fff" stroke-width="1.5"/></svg><span style="font-size:0.72rem">Complaint of pain</span></div>
 </div>
 
-<button id="select-btn" title="Draw a rectangle to select incidents">Select Area</button>
 <div id="download-bar">
   <span><span class="count" id="sel-count">0</span> incidents selected</span>
   <button id="download-csv">Download CSV</button>
