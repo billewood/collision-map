@@ -248,6 +248,50 @@
     #about-body .stat-box .num { font-size: 1.4rem; font-weight: 700; color: #c53030; }
     #about-body .stat-box .lbl { font-size: 0.72rem; color: #718096; }
 
+    /* ── Box select ── */
+    #select-btn {
+      position: absolute;
+      top: 10px; right: 10px;
+      z-index: 1000;
+      background: white;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-radius: 4px;
+      padding: 6px 12px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #4a5568;
+    }
+    #select-btn:hover { background: #f7fafc; }
+    #select-btn.active { background: #c53030; color: white; border-color: #c53030; }
+
+    #download-bar {
+      display: none;
+      position: absolute;
+      top: 10px; left: 50%; transform: translateX(-50%);
+      z-index: 1000;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+      padding: 8px 16px;
+      font-size: 0.82rem;
+      align-items: center;
+      gap: 12px;
+    }
+    #download-bar.visible { display: flex; }
+    #download-bar .count { font-weight: 700; color: #c53030; }
+    #download-csv {
+      background: #c53030; color: white; border: none; border-radius: 4px;
+      padding: 5px 14px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+    }
+    #download-csv:hover { background: #9b2c2c; }
+    #clear-selection {
+      background: none; border: 1px solid #cbd5e0; border-radius: 4px;
+      padding: 5px 10px; font-size: 0.78rem; cursor: pointer; color: #4a5568;
+    }
+
+    .leaflet-container.box-select-mode { cursor: crosshair !important; }
+
     @media (max-width: 640px) {
       #sidebar { display: none; }
       #detail-panel { width: calc(100vw - 20px); right: 10px; }
@@ -373,6 +417,12 @@
   <div class="legend-row"><svg width="8" height="8"><circle cx="4" cy="4" r="4" fill="#718096" fill-opacity="0.72" stroke="#fff" stroke-width="1.5"/></svg><span style="font-size:0.72rem">Complaint of pain</span></div>
 </div>
 
+<button id="select-btn" title="Draw a rectangle to select incidents">Select Area</button>
+<div id="download-bar">
+  <span><span class="count" id="sel-count">0</span> incidents selected</span>
+  <button id="download-csv">Download CSV</button>
+  <button id="clear-selection">Clear</button>
+</div>
 <div id="coverage-note">Loading data coverage…</div>
 <div id="loading">Loading incidents...</div>
 
@@ -692,6 +742,120 @@ document.getElementById('about-overlay').addEventListener('click', e => {
     document.getElementById('about-overlay').classList.remove('visible');
 });
 
+
+// ── Box select & download ────────────────────────────────────────────────
+let boxSelectMode = false;
+let selectionRect = null;
+let selectedFeatures = [];
+let boxStart = null;
+
+const selectBtn = document.getElementById('select-btn');
+const downloadBar = document.getElementById('download-bar');
+
+selectBtn.addEventListener('click', () => {
+  boxSelectMode = !boxSelectMode;
+  selectBtn.classList.toggle('active', boxSelectMode);
+  map.getContainer().classList.toggle('box-select-mode', boxSelectMode);
+  if (boxSelectMode) {
+    map.dragging.disable();
+  } else {
+    map.dragging.enable();
+    if (selectionRect) { map.removeLayer(selectionRect); selectionRect = null; }
+  }
+});
+
+map.getContainer().addEventListener('mousedown', e => {
+  if (!boxSelectMode) return;
+  boxStart = map.mouseEventToLatLng(e);
+  if (selectionRect) { map.removeLayer(selectionRect); selectionRect = null; }
+});
+
+map.getContainer().addEventListener('mousemove', e => {
+  if (!boxSelectMode || !boxStart) return;
+  const cur = map.mouseEventToLatLng(e);
+  const bounds = L.latLngBounds(boxStart, cur);
+  if (selectionRect) {
+    selectionRect.setBounds(bounds);
+  } else {
+    selectionRect = L.rectangle(bounds, {
+      color: '#c53030', weight: 2, fillOpacity: 0.1, dashArray: '6 3',
+    }).addTo(map);
+  }
+});
+
+map.getContainer().addEventListener('mouseup', e => {
+  if (!boxSelectMode || !boxStart) return;
+  const end = map.mouseEventToLatLng(e);
+  const bounds = L.latLngBounds(boxStart, end);
+  boxStart = null;
+
+  // Find all features inside the rectangle
+  selectedFeatures = allFeatures.filter(f => {
+    if (!f.geometry) return false;
+    const [lng, lat] = f.geometry.coordinates;
+    return bounds.contains([lat, lng]);
+  });
+
+  // Highlight selected markers
+  Object.values(markerById).forEach(m => {
+    m.setStyle(markerStyle(m._incidentProps, false));
+  });
+  selectedFeatures.forEach(f => {
+    const m = markerById[f.properties.id];
+    if (m) {
+      m.setStyle({ ...markerStyle(m._incidentProps, false), color: '#c53030', weight: 2.5 });
+      m.bringToFront();
+    }
+  });
+
+  document.getElementById('sel-count').textContent = selectedFeatures.length;
+  downloadBar.classList.toggle('visible', selectedFeatures.length > 0);
+
+  // Exit box select mode
+  boxSelectMode = false;
+  selectBtn.classList.remove('active');
+  map.getContainer().classList.remove('box-select-mode');
+  map.dragging.enable();
+});
+
+document.getElementById('clear-selection').addEventListener('click', () => {
+  selectedFeatures = [];
+  downloadBar.classList.remove('visible');
+  if (selectionRect) { map.removeLayer(selectionRect); selectionRect = null; }
+  Object.values(markerById).forEach(m => {
+    m.setStyle(markerStyle(m._incidentProps, false));
+  });
+});
+
+document.getElementById('download-csv').addEventListener('click', () => {
+  if (!selectedFeatures.length) return;
+  const fields = [
+    'collision_date','city','jurisdiction','location_text','latitude','longitude',
+    'incident_type','involves_bicycle','involves_pedestrian','severity',
+    'number_killed','number_injured','party_ages','injuries_mentioned','source',
+  ];
+  const header = fields.join(',');
+  const rows = selectedFeatures.map(f => {
+    const p = f.properties;
+    const coords = f.geometry ? f.geometry.coordinates : [null, null];
+    const row = { ...p, latitude: coords[1], longitude: coords[0] };
+    return fields.map(k => {
+      let v = row[k] ?? '';
+      v = String(v);
+      if (v.includes(',') || v.includes('"') || v.includes('\n'))
+        v = '"' + v.replace(/"/g, '""') + '"';
+      return v;
+    }).join(',');
+  });
+  const csv = header + '\n' + rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'collisions_selected.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
