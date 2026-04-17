@@ -77,7 +77,7 @@ def list_incidents(
     date_end: Optional[str] = Query(None, description="YYYY-MM-DD"),
     geocoded_only: bool = Query(False, description="Only return incidents with lat/lon"),
     min_confidence: float = Query(0.0, description="Minimum confidence (dispatch only)"),
-    limit: int = Query(2000, le=5000),
+    limit: int = Query(5000, le=10000),
     session: Session = Depends(db.get_db),
 ):
     """
