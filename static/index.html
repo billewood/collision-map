@@ -380,7 +380,11 @@
         <label>To</label>
         <input type="date" id="date-end" />
       </div>
-      <button id="apply-filters">Apply</button>
+      <div id="date-range-note" style="font-size:0.75rem;color:#718096;margin-top:2px"></div>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <button id="apply-filters">Apply</button>
+        <button id="reset-dates" style="background:#e2e8f0;color:#4a5568">All dates</button>
+      </div>
     </div>
 
     <div id="ungeocode-banner"></div>
@@ -667,6 +671,16 @@ document.getElementById('apply-filters').addEventListener('click', () => {
   loadAndRender();
 });
 
+document.getElementById('reset-dates').addEventListener('click', async () => {
+  try {
+    const resp = await fetch('/meta');
+    const meta = await resp.json();
+    if (meta.date_min) { document.getElementById('date-start').value = meta.date_min; filters.dateStart = meta.date_min; }
+    if (meta.date_max) { document.getElementById('date-end').value = meta.date_max; filters.dateEnd = meta.date_max; }
+    loadAndRender();
+  } catch (_) {}
+});
+
 function buildQueryString() {
   const params = new URLSearchParams();
 
@@ -863,6 +877,12 @@ async function init() {
     if (meta.date_max) {
       document.getElementById('date-end').value = meta.date_max;
       filters.dateEnd = meta.date_max;
+    }
+
+    // Show available date range
+    if (meta.date_min && meta.date_max) {
+      document.getElementById('date-range-note').textContent =
+        `Available: ${meta.date_min} to ${meta.date_max}`;
     }
 
     // Build coverage note
