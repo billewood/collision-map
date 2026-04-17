@@ -656,6 +656,11 @@ document.getElementById('show-switrs').addEventListener('change', e => {
   loadAndRender();
 });
 
+document.getElementById('show-dispatch').addEventListener('change', e => {
+  filters.showDispatch = e.target.checked;
+  loadAndRender();
+});
+
 document.querySelectorAll('.city-check').forEach(cb => {
   cb.addEventListener('change', () => {
     filters.cities = new Set(
