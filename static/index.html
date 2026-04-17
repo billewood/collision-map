@@ -324,7 +324,7 @@
 
       <h3>Data sources</h3>
       <p><strong>SWITRS</strong> (currently shown) — California's official Statewide Integrated Traffic Records System, exported from <a href="https://tims.berkeley.edu" target="_blank">tims.berkeley.edu</a>. Covers only crashes that were reported to law enforcement.</p>
-      <p><strong>EMS Dispatch</strong> (coming soon) — extracted from Broadcastify scanner archive recordings using Whisper transcription and Claude. Will reveal crashes that were responded to by EMS but never filed as police reports.</p>
+      <p><strong>EMS Dispatch</strong> (limited data — still processing) — extracted from Broadcastify scanner archive recordings using Whisper transcription and Claude, plus news reports. Reveals crashes that were responded to by EMS but never filed as police reports.</p>
 
       <h3>Methodology</h3>
       <p>About 40% of SWITRS records lack GPS coordinates and are geocoded using Claude (address normalization) and the Google Maps API. Geocoded incidents are validated against a West Contra Costa bounding box.</p>
@@ -343,8 +343,8 @@
           SWITRS <span style="font-size:0.7rem;color:#718096">(official records)</span>
         </label>
         <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#a0aec0;cursor:not-allowed" title="Dispatch data not yet loaded">
-          <input type="checkbox" id="show-dispatch" disabled style="cursor:not-allowed" />
-          Dispatch <span style="font-size:0.7rem;background:#e2e8f0;color:#718096;padding:1px 5px;border-radius:8px">coming soon</span>
+          <input type="checkbox" id="show-dispatch" />
+          Dispatch <span style="font-size:0.7rem;background:#fed7d7;color:#c53030;padding:1px 5px;border-radius:8px">limited data — still processing</span>
         </label>
       </div>
       <div class="filter-row" style="flex-direction:column;gap:4px;align-items:flex-start">
