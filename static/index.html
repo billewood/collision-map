@@ -690,7 +690,7 @@ function buildQueryString() {
 async function loadAndRender() {
   document.getElementById('loading').style.display = 'block';
   try {
-    const resp = await fetch(`/incidents?${buildQueryString()}`);
+    const resp = await fetch(`/incidents?${buildQueryString()}`, { cache: 'no-store' });
     const geojson = await resp.json();
     allFeatures = geojson.features;
 
@@ -713,7 +713,7 @@ async function updateStats(meta) {
     const params = new URLSearchParams();
     if (filters.dateStart) params.set('date_start', filters.dateStart);
     if (filters.dateEnd)   params.set('date_end',   filters.dateEnd);
-    const s = await fetch(`/incidents/summary?${params}`);
+    const s = await fetch(`/incidents/summary?${params}`, { cache: 'no-store' });
     const summary = await s.json();
     const ratio = summary.total_switrs > 0
       ? (summary.total_dispatch / summary.total_switrs).toFixed(1) + 'x'
